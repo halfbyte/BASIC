@@ -2,6 +2,7 @@ require "readline"
 require "basic/program"
 require "basic/compiler"
 require "basic/lexer"
+require "basic/outbuffer"
 
 class Array
   def split(delim)
@@ -32,8 +33,8 @@ class FalseClass
   define_method :"!" do
     true
   end
-  
-  define_method :"||" do |other| 
+
+  define_method :"||" do |other|
     self || other
   end
 end
@@ -46,62 +47,59 @@ end
 
 module Basic
   module Interpreter
-    
+
+
+
     def define(number,tokens)
-      begin
-        commands = tokens.split(':')
-        commands.each_with_index do |c,segment|
-          method_body = Compiler.compile(c,number,segment)
-          Program.define(number,segment,c,method_body)
-        end
-      rescue SyntaxError => e
-        puts "SYNTAX ERROR in LINE #{number}"
-        puts e
-        puts tokens.join(" ")
+      commands = tokens.split(':')
+      commands.each_with_index do |c,segment|
+        method_body = Compiler.compile(c,number,segment)
+        Program.define(number,segment,c,method_body)
       end
+    rescue SyntaxError => e
+      raise SyntaxError.new("SYNTAX ERROR IN LINE #{number}:\n#{e.message}\n#{tokens.join(" ")}")
     end
 
     def compile(number,tokens)
-      if tokens.empty? 
+      if tokens.empty?
         Program.remove(number)
       else
         define number,tokens
       end
+      return false # compilation does not need feedback
     end
 
     def execute(line,rest)
       case line
       when "RUN"
-        Program.run
+        Program.run *rest
+        return true
       when "LIST"
         Program.list
+        return true
       when "RENUMBER"
         Program.renumber *rest
-      when "GENERATED"
-        Program.generated
-      when "LOAD"
-        Program.clear
-        filename = rest.shift.strip_str("\"")
-        f = File.open(filename)
-        reader(lambda do
-          line = f.gets
-          if line
-            return line.chomp
-          else
-            return false
-          end
-        end)
-      when "EXIT"
         return false
       else
-        puts "HUH?"
+        raise NoMethodError.new
       end
-      return true
+      return false
+    end
+
+    def run_line(line)
+      first,*rest = read(line)
+      puts first, rest.inspect
+      if first =~ /\d+/
+        compile first.to_i, rest
+      else
+        execute first,rest or return
+      end
     end
 
     def reader(cmd)
       while line = cmd.call()
         first,*rest = read(line)
+        puts first, rest.inspect
         if first =~ /\d+/
           compile first.to_i, rest
         else

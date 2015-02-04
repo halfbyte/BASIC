@@ -1,0 +1,7 @@
+---
+:consumer_secret: API_SECRET
+:consumer_key: API_KEY
+:token: USER_TOKEN
+:secret: USER_SECRET
+:log_dest: 'basicbot.log'
+

@@ -2,23 +2,26 @@ require "basic/basiclib"
 require "basic/runtime"
 
 module Basic
-  class StopException < Exception
-  end
+  class StopException < StandardError; end
 
-  class RerunException < Exception
-  end
+  class UndefinedStatementException < StandardError; end
+
+  class BufferOverflowException < StandardError; end
+
+  class RerunException < StandardError; end
 
   class Program
-    def self.run()
+    def self.run(line_no = nil)
       begin
         rerun = false
         @env = {}
-        line_no = @lines.keys.min
+        line_no ||= @lines.keys.min
         return unless line_no
         begin
           b = self.new
           b.gosub(line_no)
         rescue StopException
+        rescue BufferOverflowException
         rescue RerunException
           rerun = true
         end
@@ -30,20 +33,21 @@ module Basic
     end
 
     def self.list()
+      @out = Outbuffer.instance
       @lines.sort_by{ |num, _| num }.each do |num, parts|
-        print num
+        @out.print num.to_s
         parts.each do |statements|
           spaced = statements.map{ |s|
             s =~ /^[A-Z]{2,}$/ && !FUNCTIONS.include?(s)
           }
           (0...statements.length).each do |i|
             if i == 0 || spaced[i] || spaced[i-1]
-              print " "
+              @out.print " "
             end
-            print statements[i]
+            @out.print statements[i]
           end
         end
-        puts
+        @out.print("\n")
       end
     end
 
@@ -51,6 +55,10 @@ module Basic
       @generated.keys.sort.each do |k|
         puts @generated[k]
       end
+    end
+
+    def self.next_line(num)
+
     end
 
     def self.next(num,segment)
